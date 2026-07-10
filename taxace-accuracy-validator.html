@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaxAce Accuracy Validator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f0;--surface:#fff;--surface-alt:#f1efe8;
+  --border:rgba(0,0,0,0.09);--border-strong:rgba(0,0,0,0.16);
+  --text:#1a1a18;--text-2:#5f5e5a;--text-3:#888780;
+  --teal:#0f6e56;--teal-light:#e1f5ee;--teal-dark:#085041;
+  --green-bg:#eaf3de;--green-text:#3b6d11;
+  --red-bg:#fcebeb;--red-text:#a32d2d;
+  --amber-bg:#faeeda;--amber-text:#854f0b;
+  --blue-bg:#e6f1fb;--blue-text:#185fa5;
+  --radius:8px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1a1a18;--surface:#2c2c2a;--surface-alt:#242422;
+  --border:rgba(255,255,255,0.07);--border-strong:rgba(255,255,255,0.13);
+  --text:#e8e6de;--text-2:#9c9a92;--text-3:#5f5e5a;
+  --teal:#5dcaa5;--teal-light:#04342c;--teal-dark:#9fe1cb;
+  --green-bg:#27500a;--green-text:#c0dd97;
+  --red-bg:#501313;--red-text:#f7c1c1;
+  --amber-bg:#412402;--amber-text:#fac775;
+  --blue-bg:#042c53;--blue-text:#b5d4f4;
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6;padding:2rem 1rem}
+.wrap{max-width:760px;margin:0 auto}
+
+.header{display:flex;align-items:center;gap:10px;margin-bottom:2rem}
+.logomark{width:34px;height:34px;border-radius:9px;background:var(--teal);color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;letter-spacing:-0.5px}
+.header-text h1{font-size:17px;font-weight:500}
+.header-text p{font-size:12px;color:var(--text-3);margin-top:1px}
+
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.field-label{font-size:12px;color:var(--text-2);display:block;margin-bottom:4px;font-weight:500}
+.field-sub{font-size:11px;color:var(--text-3);margin-bottom:8px;display:block;line-height:1.4}
+textarea{width:100%;padding:10px 12px;border-radius:var(--radius);border:0.5px solid var(--border-strong);background:var(--surface-alt);color:var(--text);font-size:13px;font-family:inherit;line-height:1.5;resize:vertical}
+textarea:focus{outline:none;border-color:var(--teal)}
+textarea::placeholder{color:var(--text-3)}
+.field{margin-bottom:14px}
+.divider{border:none;border-top:0.5px solid var(--border);margin:1rem 0}
+
+/* Source mode toggle */
+.source-tabs{display:flex;gap:0;margin-bottom:10px;border:0.5px solid var(--border-strong);border-radius:var(--radius);overflow:hidden;width:fit-content}
+.source-tab{padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;background:var(--surface-alt);color:var(--text-3);border:none;font-family:inherit;transition:all .15s}
+.source-tab.active{background:var(--teal);color:#fff}
+.source-tab:not(.active):hover{background:var(--teal-light);color:var(--teal-dark)}
+
+/* Drop zone */
+.drop-zone{border:1.5px dashed var(--border-strong);border-radius:var(--radius);padding:2rem 1rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface-alt);position:relative}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--teal);background:var(--teal-light)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:28px;margin-bottom:8px;color:var(--text-3)}
+.drop-title{font-size:13px;font-weight:500;color:var(--text-2);margin-bottom:3px}
+.drop-sub{font-size:11px;color:var(--text-3)}
+.drop-zone.has-file{border-style:solid;border-color:var(--teal);background:var(--teal-light)}
+.file-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:0.5px solid var(--teal);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--teal-dark);margin-top:8px}
+.file-remove{cursor:pointer;color:var(--text-3);font-size:14px;line-height:1;background:none;border:none;padding:0;margin-left:2px}
+.file-remove:hover{color:var(--red-text)}
+
+/* Source preview */
+.source-preview{margin-top:8px;padding:10px 12px;background:var(--surface-alt);border-radius:var(--radius);border:0.5px solid var(--border);font-size:12px;color:var(--text-2);line-height:1.5;max-height:120px;overflow-y:auto;display:none;white-space:pre-wrap;word-break:break-word}
+.source-preview.show{display:block}
+
+/* Type buttons */
+.type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;margin-top:6px}
+.type-btn{padding:7px 10px;border-radius:var(--radius);border:0.5px solid var(--border-strong);background:var(--surface-alt);color:var(--text-2);font-size:12px;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
+.type-btn:hover,.type-btn.active{background:var(--teal-light);color:var(--teal-dark);border-color:var(--teal)}
+
+.btn-primary{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:var(--radius);background:var(--teal);color:#fff;border:none;font-size:14px;font-family:inherit;font-weight:500;cursor:pointer;transition:all .15s;width:100%;justify-content:center}
+.btn-primary:hover:not(:disabled){filter:brightness(1.08)}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed}
+.btn-secondary{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);background:var(--surface-alt);color:var(--text-2);border:0.5px solid var(--border-strong);font-size:13px;font-family:inherit;cursor:pointer;transition:all .15s}
+.btn-secondary:hover{background:var(--teal-light);color:var(--teal-dark);border-color:var(--teal)}
+
+.loading{display:none;text-align:center;padding:2rem;color:var(--text-3);font-size:13px}
+.loading.show{display:block}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.results{display:none}
+.results.show{display:block}
+
+.score-hero{border-radius:12px;padding:1.5rem;text-align:center;margin-bottom:1rem}
+.score-hero.pass{background:var(--green-bg);border:0.5px solid var(--green-text)}
+.score-hero.fail{background:var(--red-bg);border:0.5px solid var(--red-text)}
+.score-hero.review{background:var(--amber-bg);border:0.5px solid var(--amber-text)}
+.score-num{font-size:56px;font-weight:500;line-height:1;margin-bottom:4px}
+.score-hero.pass .score-num{color:var(--green-text)}
+.score-hero.fail .score-num{color:var(--red-text)}
+.score-hero.review .score-num{color:var(--amber-text)}
+.verdict-badge{display:inline-block;font-size:12px;font-weight:500;padding:3px 12px;border-radius:20px;margin-bottom:8px}
+.pass .verdict-badge{background:var(--green-text);color:#fff}
+.fail .verdict-badge{background:var(--red-text);color:#fff}
+.review .verdict-badge{background:var(--amber-text);color:#fff}
+.score-summary{font-size:13px;max-width:480px;margin:0 auto}
+.score-hero.pass .score-summary{color:var(--green-text);opacity:.85}
+.score-hero.fail .score-summary{color:var(--red-text);opacity:.85}
+.score-hero.review .score-summary{color:var(--amber-text);opacity:.85}
+.score-bar-wrap{margin:12px 0 0}
+.score-bar-track{height:6px;background:rgba(0,0,0,0.1);border-radius:3px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:3px;transition:width 1s ease;width:0}
+.pass .score-bar-fill{background:var(--green-text)}
+.fail .score-bar-fill{background:var(--red-text)}
+.review .score-bar-fill{background:var(--amber-text)}
+.score-bar-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-top:4px}
+
+.issue-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+.issue-item{background:var(--surface-alt);border-radius:var(--radius);padding:12px 14px;border-left:3px solid transparent}
+.issue-item.high{border-left-color:var(--red-text)}
+.issue-item.medium{border-left-color:var(--amber-text)}
+.issue-item.low{border-left-color:var(--blue-text)}
+.issue-header{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.issue-sev{font-size:11px;font-weight:500;padding:1px 7px;border-radius:8px}
+.sev-high{background:var(--red-bg);color:var(--red-text)}
+.sev-medium{background:var(--amber-bg);color:var(--amber-text)}
+.sev-low{background:var(--blue-bg);color:var(--blue-text)}
+.issue-title{font-size:13px;font-weight:500;color:var(--text)}
+.issue-detail{font-size:12px;color:var(--text-2);line-height:1.5;margin-bottom:6px}
+.issue-fix{font-size:12px;color:var(--teal);font-style:italic}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.section-title{font-size:13px;font-weight:500;color:var(--text)}
+.issue-count{font-size:11px;color:var(--text-3)}
+.strength-list{list-style:none;display:flex;flex-direction:column;gap:6px}
+.strength-item{font-size:13px;color:var(--text-2);padding:8px 12px;background:var(--green-bg);border-radius:var(--radius);display:flex;gap:8px;align-items:flex-start}
+.strength-check{color:var(--green-text);font-weight:500;flex-shrink:0}
+.threshold{font-size:12px;color:var(--text-3);padding:10px 14px;background:var(--surface-alt);border-radius:var(--radius);border-left:3px solid var(--border-strong)}
+
+.history-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)}
+.history-item:last-child{border-bottom:none}
+.hist-score{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;flex-shrink:0}
+.hist-score.pass{background:var(--green-bg);color:var(--green-text)}
+.hist-score.fail{background:var(--red-bg);color:var(--red-text)}
+.hist-score.review{background:var(--amber-bg);color:var(--amber-text)}
+.hist-info{flex:1;min-width:0}
+.hist-type{font-size:12px;font-weight:500;color:var(--text)}
+.hist-meta{font-size:11px;color:var(--text-3)}
+.hist-verdict{font-size:11px;font-weight:500}
+.hist-verdict.pass{color:var(--green-text)}
+.hist-verdict.fail{color:var(--red-text)}
+.hist-verdict.review{color:var(--amber-text)}
+.empty-history{font-size:13px;color:var(--text-3);text-align:center;padding:1.5rem 0}
+
+footer{margin-top:2rem;font-size:11px;color:var(--text-3);text-align:center;padding-bottom:2rem}
+
+@media(max-width:540px){
+  .type-grid{grid-template-columns:repeat(2,1fr)}
+  .score-num{font-size:44px}
+  .source-tabs{width:100%}
+  .source-tab{flex:1;text-align:center}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="logomark">TA</div>
+    <div class="header-text">
+      <h1>Accuracy validator</h1>
+      <p>TaxAce Group Inc. · R&amp;E Lead tool</p>
+    </div>
+  </div>
+
+  <div class="card" id="input-card">
+
+    <!-- Output type -->
+    <div class="field">
+      <label class="field-label">Output type</label>
+      <span class="field-sub">Sets the pass threshold for this validation.</span>
+      <div class="type-grid" id="type-grid">
+        <button class="type-btn active" data-type="Evaluation report" data-threshold="8">Evaluation report</button>
+        <button class="type-btn" data-type="Stack audit" data-threshold="8">Stack audit</button>
+        <button class="type-btn" data-type="Leadership briefing" data-threshold="9">Leadership briefing</button>
+        <button class="type-btn" data-type="Prompt output" data-threshold="8">Prompt output</button>
+        <button class="type-btn" data-type="Market research" data-threshold="7">Market research</button>
+        <button class="type-btn" data-type="Internal note" data-threshold="7">Internal note</button>
+        <button class="type-btn" data-type="Client communication" data-threshold="9">Client comms</button>
+        <button class="type-btn" data-type="Other" data-threshold="7">Other</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Source material -->
+    <div class="field">
+      <label class="field-label">Source material <span style="font-weight:400;color:var(--text-3)">(optional but recommended)</span></label>
+      <span class="field-sub">Provide what the output was based on — Claude checks every claim against it. Upload a file, paste text, or write a brief in your own words.</span>
+
+      <div class="source-tabs">
+        <button class="source-tab active" onclick="setSourceMode('paste')" id="tab-paste">Paste text</button>
+        <button class="source-tab" onclick="setSourceMode('upload')" id="tab-upload">Upload file</button>
+        <button class="source-tab" onclick="setSourceMode('brief')" id="tab-brief">Write a brief</button>
+      </div>
+
+      <!-- Paste text -->
+      <div id="source-paste">
+        <textarea id="source-text" rows="3" placeholder="Paste the original source document, data, or findings here…"></textarea>
+      </div>
+
+      <!-- Upload file -->
+      <div id="source-upload" style="display:none">
+        <div class="drop-zone" id="drop-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+          <input type="file" id="file-input" accept=".txt,.md,.pdf,.docx,.csv" onchange="handleFileSelect(event)">
+          <div class="drop-icon">&#8613;</div>
+          <div class="drop-title" id="drop-title">Drop a file here or click to browse</div>
+          <div class="drop-sub" id="drop-sub">Supports .txt, .md, .csv, .pdf, .docx</div>
+        </div>
+        <div id="file-chip-wrap" style="display:none;margin-top:8px">
+          <span class="file-chip">
+            <span id="file-name-label"></span>
+            <button class="file-remove" onclick="clearFile()" title="Remove file">✕</button>
+          </span>
+        </div>
+        <div class="source-preview" id="file-preview"></div>
+      </div>
+
+      <!-- Write a brief -->
+      <div id="source-brief" style="display:none">
+        <textarea id="brief-text" rows="4" placeholder="Describe the source in your own words, e.g. 'This output was based on our Q3 tool inventory. The total spend was $847/mo across 12 tools. We flagged Loom and LastPass as unused. No locked contracts.'"></textarea>
+        <p style="font-size:11px;color:var(--text-3);margin-top:4px">Write naturally — Claude will use this as context when checking the output.</p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Output to validate -->
+    <div class="field">
+      <label class="field-label">Output to validate <span style="color:var(--red-text)">*</span></label>
+      <span class="field-sub">Paste the AI-generated or human-written content you want to check.</span>
+      <textarea id="output-input" rows="9" placeholder="Paste the output you want to validate here…"></textarea>
+    </div>
+
+    <!-- Context -->
+    <div class="field">
+      <label class="field-label">Additional context <span style="font-weight:400;color:var(--text-3)">(optional)</span></label>
+      <textarea id="context-input" rows="2" placeholder="e.g. This is going to Nataly and Joe — accuracy of all financial figures is critical…"></textarea>
+    </div>
+
+    <button class="btn-primary" id="validate-btn" onclick="runValidation()">
+      <span id="btn-text">Validate output</span>
+    </button>
+    <p id="error-msg" style="font-size:12px;color:var(--red-text);margin-top:8px;display:none"></p>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p id="loading-msg">Running accuracy check…</p>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <div id="score-hero" class="score-hero">
+      <div class="verdict-badge" id="verdict-badge"></div>
+      <div class="score-num" id="score-num"></div>
+      <div style="font-size:13px;margin-bottom:4px;opacity:.6">out of 10</div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-track"><div class="score-bar-fill" id="score-bar"></div></div>
+        <div class="score-bar-labels"><span>0</span><span>Pass threshold: <span id="threshold-label"></span>/10</span><span>10</span></div>
+      </div>
+      <div class="score-summary" id="score-summary" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card" id="issues-card" style="display:none">
+      <div class="section-head">
+        <span class="section-title">Issues found</span>
+        <span class="issue-count" id="issue-count"></span>
+      </div>
+      <ul class="issue-list" id="issue-list"></ul>
+    </div>
+
+    <div class="card" id="strengths-card" style="display:none">
+      <div class="section-head"><span class="section-title">What holds up</span></div>
+      <ul class="strength-list" id="strength-list"></ul>
+    </div>
+
+    <div class="threshold" id="threshold-note" style="margin-bottom:1rem;display:none"></div>
+
+    <div style="display:flex;gap:8px;margin-bottom:1.5rem;flex-wrap:wrap">
+      <button class="btn-secondary" onclick="resetForm()">Validate another</button>
+      <button class="btn-secondary" onclick="exportResult()">Export result</button>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card">
+    <div class="section-head">
+      <span class="section-title">Validation history</span>
+      <button class="btn-secondary" onclick="clearHistory()" style="font-size:11px;padding:4px 10px">Clear</button>
+    </div>
+    <div id="history-list"><p class="empty-history">No validations run yet — results appear here after each check.</p></div>
+  </div>
+
+  <footer>TaxAce Group Inc. · Accuracy Validator · R&amp;E Lead tool · Built June 2026</footer>
+</div>
+
+<script>
+const STORAGE_KEY = 'taxace-validator-v2';
+let selectedType = 'Evaluation report';
+let selectedThreshold = 8;
+let sourceMode = 'paste';
+let fileContent = '';
+let lastResult = null;
+
+// Type buttons
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedType = btn.dataset.type;
+    selectedThreshold = parseInt(btn.dataset.threshold);
+  });
+});
+
+// Source mode toggle
+function setSourceMode(mode) {
+  sourceMode = mode;
+  ['paste','upload','brief'].forEach(m => {
+    document.getElementById('source-' + m).style.display = m === mode ? 'block' : 'none';
+    document.getElementById('tab-' + m).classList.toggle('active', m === mode);
+  });
+}
+
+// Drag and drop
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.add('dragover');
+}
+function handleDragLeave(e) {
+  document.getElementById('drop-zone').classList.remove('dragover');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  const allowed = ['text/plain','text/markdown','text/csv','application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+  const ext = file.name.split('.').pop().toLowerCase();
+  const okExts = ['txt','md','csv','pdf','docx'];
+  if (!okExts.includes(ext)) {
+    showFileError('Unsupported file type. Use .txt, .md, .csv, .pdf, or .docx');
+    return;
+  }
+
+  const reader = new FileReader();
+
+  if (ext === 'pdf' || ext === 'docx') {
+    // For binary files we can't read as text cleanly — note to user
+    fileContent = `[File: ${file.name}] Note: Binary file uploaded. Claude will be informed the source is a ${ext.toUpperCase()} file named "${file.name}". For best results with PDF/DOCX, paste the text content directly using the "Paste text" tab.`;
+    showFileBadge(file.name);
+    showPreview(fileContent);
+    return;
+  }
+
+  reader.onload = function(e) {
+    fileContent = e.target.result;
+    showFileBadge(file.name);
+    showPreview(fileContent.slice(0, 600) + (fileContent.length > 600 ? '…' : ''));
+  };
+  reader.onerror = () => showFileError('Could not read file. Try pasting the text instead.');
+  reader.readAsText(file);
+}
+
+function showFileBadge(name) {
+  document.getElementById('drop-zone').classList.add('has-file');
+  document.getElementById('drop-title').textContent = 'File loaded';
+  document.getElementById('drop-sub').textContent = name;
+  document.getElementById('file-name-label').textContent = name;
+  document.getElementById('file-chip-wrap').style.display = 'block';
+}
+
+function showPreview(text) {
+  const el = document.getElementById('file-preview');
+  el.textContent = text;
+  el.classList.add('show');
+}
+
+function showFileError(msg) {
+  document.getElementById('drop-title').textContent = msg;
+  document.getElementById('drop-sub').textContent = 'Try a different file';
+}
+
+function clearFile() {
+  fileContent = '';
+  document.getElementById('file-input').value = '';
+  document.getElementById('drop-zone').classList.remove('has-file');
+  document.getElementById('drop-title').textContent = 'Drop a file here or click to browse';
+  document.getElementById('drop-sub').textContent = 'Supports .txt, .md, .csv, .pdf, .docx';
+  document.getElementById('file-chip-wrap').style.display = 'none';
+  document.getElementById('file-preview').classList.remove('show');
+  document.getElementById('file-preview').textContent = '';
+}
+
+function getSourceContent() {
+  if (sourceMode === 'paste') return document.getElementById('source-text').value.trim();
+  if (sourceMode === 'upload') return fileContent.trim();
+  if (sourceMode === 'brief') return document.getElementById('brief-text').value.trim();
+  return '';
+}
+
+async function runValidation() {
+  const output = document.getElementById('output-input').value.trim();
+  const source = getSourceContent();
+  const context = document.getElementById('context-input').value.trim();
+  const errEl = document.getElementById('error-msg');
+
+  if (!output) {
+    errEl.textContent = 'Please paste the output you want to validate.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  document.getElementById('validate-btn').disabled = true;
+  document.getElementById('btn-text').textContent = 'Validating…';
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('results').classList.remove('show');
+
+  const msgs = ['Running accuracy check…','Checking claims against source…','Scoring against TaxAce dossier…','Building issue list…'];
+  let mi = 0;
+  const msgInt = setInterval(() => { mi=(mi+1)%msgs.length; document.getElementById('loading-msg').textContent=msgs[mi]; }, 2200);
+
+  const sourceModeLabel = sourceMode === 'paste' ? 'pasted text' : sourceMode === 'upload' ? 'uploaded file' : 'written brief';
+
+  const systemPrompt = `You are the TaxAce Accuracy Validator — a specialist for TaxAce Group Inc., a full-service tax and accounting firm in Fairfield, California. Your job is to validate AI-generated or human-written outputs for accuracy, completeness, compliance with TaxAce guardrails, and quality.
+
+TaxAce guardrails to check:
+- Never invent client facts, financial figures, or tax outcomes
+- Never quote a PRICE PENDING service (Tax Planning, Tax Resolution, Bookkeeping, Payroll, Entity Services, ASOP are all price-pending — only Tax Preparation has a confirmed price of $600–$2,000)
+- Never guarantee a refund, savings, case outcome, or audit result
+- Never use IRS scare language or fear-based framing
+- Never judge clients for past mistakes
+- Never provide compliance advice without flagging human review
+- Never claim a credential TaxAce does not hold
+- Brand voice: direct, approachable, expert, peer-to-peer — never cold, salesy, or condescending
+
+Output type: ${selectedType}
+Pass threshold: ${selectedThreshold}/10
+Source material provided: ${source ? `YES (${sourceModeLabel}) — check every factual claim against it` : 'NO — flag any ungrounded claims'}
+${context ? `R&E Lead context: ${context}` : ''}
+
+Respond ONLY with valid JSON — no preamble, no markdown fences:
+{
+  "score": <integer 1-10>,
+  "verdict": "<PASS|FAIL|REVIEW>",
+  "summary": "<2-3 sentence plain-English summary>",
+  "issues": [{"severity":"<high|medium|low>","title":"<short title>","detail":"<what and where>","fix":"<specific fix>"}],
+  "strengths": ["<strength>"]
+}
+
+Verdict: PASS = score >= ${selectedThreshold} and no high issues. REVIEW = close to threshold or medium issues only. FAIL = score < ${selectedThreshold} or any high issue.
+Severity: high = guardrail violation or false claim. medium = voice deviation or unsupported claim. low = minor phrasing or missing context.`;
+
+  const userMsg = `Validate this output:\n---\n${output}\n---${source ? `\n\nSource material (${sourceModeLabel}):\n---\n${source.slice(0,4000)}\n---` : ''}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:systemPrompt,messages:[{role:'user',content:userMsg}]})
+    });
+    const data = await res.json();
+    clearInterval(msgInt);
+    const raw = data.content?.[0]?.text || '';
+    const result = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    result.outputType = selectedType;
+    result.threshold = selectedThreshold;
+    result.timestamp = new Date().toISOString();
+    result.hasSource = !!source;
+    result.sourceMode = sourceMode;
+    lastResult = result;
+    saveHistory(result);
+    renderResult(result);
+  } catch(e) {
+    clearInterval(msgInt);
+    errEl.textContent = 'Validation failed — check your connection and try again.';
+    errEl.style.display = 'block';
+  }
+
+  document.getElementById('loading').classList.remove('show');
+  document.getElementById('validate-btn').disabled = false;
+  document.getElementById('btn-text').textContent = 'Validate output';
+}
+
+function renderResult(r) {
+  const cls = r.verdict==='PASS'?'pass':r.verdict==='FAIL'?'fail':'review';
+  const hero = document.getElementById('score-hero');
+  hero.className = 'score-hero ' + cls;
+  document.getElementById('verdict-badge').textContent = r.verdict;
+  document.getElementById('score-num').textContent = r.score + '/10';
+  document.getElementById('score-summary').textContent = r.summary;
+  document.getElementById('threshold-label').textContent = r.threshold;
+  setTimeout(() => { document.getElementById('score-bar').style.width = (r.score/10*100)+'%'; }, 100);
+
+  const issuesCard = document.getElementById('issues-card');
+  if (r.issues && r.issues.length) {
+    document.getElementById('issue-count').textContent = r.issues.length + ' issue' + (r.issues.length>1?'s':'') + ' found';
+    document.getElementById('issue-list').innerHTML = r.issues.map(i=>`
+      <li class="issue-item ${i.severity}">
+        <div class="issue-header">
+          <span class="issue-sev sev-${i.severity}">${i.severity}</span>
+          <span class="issue-title">${esc(i.title)}</span>
+        </div>
+        <p class="issue-detail">${esc(i.detail)}</p>
+        <p class="issue-fix">Fix: ${esc(i.fix)}</p>
+      </li>`).join('');
+    issuesCard.style.display = 'block';
+  } else { issuesCard.style.display = 'none'; }
+
+  const strengthsCard = document.getElementById('strengths-card');
+  if (r.strengths && r.strengths.length) {
+    document.getElementById('strength-list').innerHTML = r.strengths.map(s=>`<li class="strength-item"><span class="strength-check">✓</span><span>${esc(s)}</span></li>`).join('');
+    strengthsCard.style.display = 'block';
+  } else { strengthsCard.style.display = 'none'; }
+
+  const tn = document.getElementById('threshold-note');
+  tn.style.display = 'block';
+  if (r.verdict==='PASS') tn.textContent = `This output meets the ${r.threshold}/10 threshold for ${r.outputType}. Ready to use, pending any medium-severity fixes above.`;
+  else if (r.verdict==='REVIEW') tn.textContent = `This output is close to the ${r.threshold}/10 threshold for ${r.outputType}. Address the issues listed before using or sharing.`;
+  else tn.textContent = `This output does not meet the ${r.threshold}/10 threshold for ${r.outputType}. Do not use or share until all high-severity issues are resolved and it is re-validated.`;
+
+  document.getElementById('results').classList.add('show');
+  document.getElementById('score-hero').scrollIntoView({behavior:'smooth',block:'start'});
+  renderHistory();
+}
+
+function resetForm() {
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('output-input').value = '';
+  document.getElementById('source-text').value = '';
+  document.getElementById('brief-text').value = '';
+  document.getElementById('context-input').value = '';
+  document.getElementById('score-bar').style.width = '0';
+  clearFile();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function exportResult() {
+  if (!lastResult) return;
+  const r = lastResult;
+  const lines = [
+    'TaxAce Accuracy Validation Report',
+    `Generated: ${new Date(r.timestamp).toLocaleString()}`,
+    `Output type: ${r.outputType}`,
+    `Source provided: ${r.hasSource ? 'Yes (' + r.sourceMode + ')' : 'No'}`,
+    '',
+    `SCORE: ${r.score}/10  |  VERDICT: ${r.verdict}  |  THRESHOLD: ${r.threshold}/10`,
+    '',
+    'Summary',
+    r.summary,
+    '',
+    `Issues (${(r.issues||[]).length})`,
+    ...(r.issues||[]).map((i,n)=>`${n+1}. [${i.severity.toUpperCase()}] ${i.title}\n   ${i.detail}\n   Fix: ${i.fix}`),
+    '',
+    'Strengths',
+    ...(r.strengths||[]).map(s=>`• ${s}`),
+    '',
+    '---',
+    'TaxAce Group Inc. · R&E Accuracy Validator'
+  ];
+  const a = document.createElement('a');
+  a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
+  a.download = `taxace-validation-${new Date(r.timestamp).toISOString().slice(0,10)}.txt`;
+  a.click();
+}
+
+function saveHistory(r) {
+  let h = loadHistory();
+  h.unshift({score:r.score,verdict:r.verdict,outputType:r.outputType,hasSource:r.hasSource,sourceMode:r.sourceMode,timestamp:r.timestamp});
+  if (h.length>20) h=h.slice(0,20);
+  try { localStorage.setItem(STORAGE_KEY,JSON.stringify(h)); } catch(e){}
+}
+function loadHistory() {
+  try { const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):[]; } catch(e){ return []; }
+}
+function clearHistory() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+  renderHistory();
+}
+function renderHistory() {
+  const h = loadHistory();
+  const el = document.getElementById('history-list');
+  if (!h.length) { el.innerHTML='<p class="empty-history">No validations run yet — results appear here after each check.</p>'; return; }
+  el.innerHTML = h.map(item=>{
+    const cls = item.verdict==='PASS'?'pass':item.verdict==='FAIL'?'fail':'review';
+    const date = new Date(item.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const src = item.hasSource ? ` · source: ${item.sourceMode}` : ' · no source';
+    return `<div class="history-item">
+      <div class="hist-score ${cls}">${item.score}</div>
+      <div class="hist-info">
+        <div class="hist-type">${esc(item.outputType)}</div>
+        <div class="hist-meta">${date}${src}</div>
+      </div>
+      <span class="hist-verdict ${cls}">${item.verdict}</span>
+    </div>`;
+  }).join('');
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+renderHistory();
+</script>
+</body>
+</html>
